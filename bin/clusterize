@@ -40,6 +40,9 @@ class Clusterize(object):
 
         self.config_file_path = os.path.join(os.path.expanduser('~'), '.clusterize_config')
         self.config_file_exists = True if os.path.exists(self.config_file_path) else False
+        if not self.config_file_exists:
+            get_default_config()
+
         self.user_defaults = {}
 
         A = lambda x: args.__dict__.get(x, None) if args.__dict__.get(x, None) is not None else self.get_default(x)
@@ -148,8 +151,9 @@ def main(args):
     c = Clusterize(args)
 
 
-def get_default_config():
-    path = os.path.join(os.path.expanduser('~'), '.clusterize_config')
+def get_default_config(path=None):
+    if not path:
+        path = os.path.join(os.path.expanduser('~'), '.clusterize_config')
 
     if os.path.exists(path):
         print(fore.RED + '{} already exists. delete it first if you want to create a new default config'.format(path) + style.RESET)
@@ -172,7 +176,7 @@ if __name__ == '__main__':
                                                    if them with a backslash, e.g. "echo \\"$(HOME)\\" > test"')
 
     groupA = ap.add_argument_group('CONFIG', "Some of these options are required, and can be set permanently by\
-                                              creating a config file. See 'DEFAULT CONFIG'. Any parameter set\
+                                              creating modifying the config file. See '~/.clusterize_config'. Any parameter set\
                                               here overwrites that found in the config file")
 
     groupA.add_argument('-p','--partition', type=str, help='Which partition of the cluster are you using?')
@@ -194,14 +198,14 @@ if __name__ == '__main__':
                                                               is {}'.format(out_of_box_defaults['mem_per_cpu']))
 
     groupB = ap.add_argument_group('DEFAULT CONFIG', "Create a default config file located at ~/.clusterize_config")
-    groupB.add_argument('--gen-config-file', action='store_true', help="This generates a template that clusterize will read to get its parameters.\
-                                                      All parameters in this file will be overwritten when parameters are provided\
-                                                      explicitly to clusterize through the command line.")
+    groupB.add_argument('--gen-new-config-file', type=str, help="If you have really garbled up your ~/.clusterize_config file,\
+                                                      use this to generate an out-of-box config file. Once you have modified it to your\
+                                                      content, replace ~/.clusterize_config with this file.")
 
     args = ap.parse_args()
 
-    if args.gen_config_file:
-        get_default_config()
+    if args.gen_new_config_file:
+        get_default_config(path=args.gen_new_config_file)
     else:
         main(args)
 
