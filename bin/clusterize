@@ -194,13 +194,13 @@ if __name__ == '__main__':
                                                               is {}'.format(out_of_box_defaults['mem_per_cpu']))
 
     groupB = ap.add_argument_group('DEFAULT CONFIG', "Create a default config file located at ~/.clusterize_config")
-    groupB.add_argument('--get-default-config', action='store_true', help="This generates a template that clusterize will read to get its parameters.\
+    groupB.add_argument('--gen-config-file', action='store_true', help="This generates a template that clusterize will read to get its parameters.\
                                                       All parameters in this file will be overwritten when parameters are provided\
                                                       explicitly to clusterize through the command line.")
 
     args = ap.parse_args()
 
-    if args.get_default_config:
+    if args.gen_config_file:
         get_default_config()
     else:
         main(args)
