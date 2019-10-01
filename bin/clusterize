@@ -91,6 +91,9 @@ class Clusterize(object):
             print('    error_file: {}'.format(self.job_err) + style.RESET)
         except subprocess.CalledProcessError as e:
             print(fore.RED + 'ClusterizeError' + style.RESET)
+            print(fore.YELLOW + \
+                  ('For permanent parameter changes, try editing the ~/.clusterize_config file') + \
+                  style.RESET)
         finally:
             os.remove(self.sbatch_filepath)
 
