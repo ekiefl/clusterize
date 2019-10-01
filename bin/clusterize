@@ -8,6 +8,7 @@ import string
 import tempfile
 import argparse
 import subprocess
+import configparser
 
 from colored import style, fore
 
@@ -26,7 +27,7 @@ SBATCH_template = """#!/bin/bash
 
 out_of_box_defaults = {
     'job_name': 'clusterize',
-    'partition': 'meren',
+    'partition': None,
     'num_nodes': 1,
     'num_tasks_per_node': 1,
     'allotted_time': '15:00:00',
@@ -37,7 +38,8 @@ class Clusterize(object):
     def __init__(self, args):
         self.job_seed = self.get_job_seed()
 
-        self.config_file_exists = False
+        self.config_file_path = os.path.join(os.path.expanduser('~'), '.clusterize_config')
+        self.config_file_exists = True if os.path.exists(self.config_file_path) else False
         self.user_defaults = {}
 
         A = lambda x: args.__dict__.get(x, None) if args.__dict__.get(x, None) is not None else self.get_default(x)
@@ -131,9 +133,11 @@ class Clusterize(object):
 
 
     def get_default(self, param_name):
-        if self.config_file_exists:
-            # load it as self.user_defaults
-            pass
+        if self.config_file_exists and not self.user_defaults:
+            config = configparser.ConfigParser()
+            config.read(self.config_file_path)
+            for k, v in config['CLUSTERIZE_DEFAULTS'].items():
+                self.user_defaults[k] = v
         else:
             pass
 
@@ -142,6 +146,20 @@ class Clusterize(object):
 
 def main(args):
     c = Clusterize(args)
+
+
+def get_default_config():
+    path = os.path.join(os.path.expanduser('~'), '.clusterize_config')
+
+    if os.path.exists(path):
+        print(fore.RED + '{} already exists. delete it first if you want to create a new default config'.format(path) + style.RESET)
+        sys.exit()
+
+    config = configparser.ConfigParser()
+    config['CLUSTERIZE_DEFAULTS'] = {k: str(v) for k, v in out_of_box_defaults.items()}
+    with open(path, 'w') as configfile:
+        config.write(configfile)
+    print(fore.GREEN + 'default config file written to {}'.format(path))
 
 
 if __name__ == '__main__':
@@ -157,7 +175,7 @@ if __name__ == '__main__':
                                               creating a config file. See 'DEFAULT CONFIG'. Any parameter set\
                                               here overwrites that found in the config file")
 
-    groupA.add_argument('-p','--partition', required=True, type=str, help='Which partition of the cluster are you using?')
+    groupA.add_argument('-p','--partition', type=str, help='Which partition of the cluster are you using?')
     groupA.add_argument('-o','--job-name', type=str, help='Give a useful name to your job. It doesn\'t have to be unique,\
                                                            as a unique ID is appended to whatever you pick.\
                                                            This name will show up in the SLURM queue, and will\
@@ -175,6 +193,15 @@ if __name__ == '__main__':
     groupA.add_argument('-M','--mem-per-cpu', type=int, help='How much memory in MB should be allotted per cpu? Default\
                                                               is {}'.format(out_of_box_defaults['mem_per_cpu']))
 
+    groupB = ap.add_argument_group('DEFAULT CONFIG', "Create a default config file located at ~/.clusterize_config")
+    groupB.add_argument('--get-default-config', action='store_true', help="This generates a template that clusterize will read to get its parameters.\
+                                                      All parameters in this file will be overwritten when parameters are provided\
+                                                      explicitly to clusterize through the command line.")
+
     args = ap.parse_args()
 
-    main(args)
+    if args.get_default_config:
+        get_default_config()
+    else:
+        main(args)
+
