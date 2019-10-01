@@ -27,10 +27,10 @@ SBATCH_template = """#!/bin/bash
 
 out_of_box_defaults = {
     'job_name': 'clusterize',
-    'partition': None,
+    'partition': 'meren',
     'num_nodes': 1,
     'num_tasks_per_node': 1,
-    'allotted_time': '15:00:00',
+    'allotted_time': '4-0:00:00',
     'mem_per_cpu': 10000,
 }
 
