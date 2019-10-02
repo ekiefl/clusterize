@@ -1,6 +1,7 @@
 # clusterize
 
-![](clusterize_demo.gif)
+
+<img src="clusterize_demo.gif" width="450" />
 
 The most basic python SLURM wrapper imaginable. The intent is to avoid the use of creating sbatch files by instead prefixing your single-line command with `clusterize`.
 
