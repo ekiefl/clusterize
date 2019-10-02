@@ -48,7 +48,7 @@ class Clusterize(object):
     def __init__(self, args):
         self.job_seed = self.get_job_seed()
 
-        self.config_file_path = open(pointer_file, 'r').readline()
+        self.config_file_path = open(pointer_file, 'r').readline().strip()
         self.config_file_exists = True if os.path.exists(self.config_file_path) else False
 
         if not self.config_file_exists:
