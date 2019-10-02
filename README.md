@@ -132,3 +132,4 @@ Finally, if you want to generate a new configuration file, you can do so with:
 clusterize "asdf" --gen-new-config-file <path-to-new-config-file>
 ```
 
+Remember to point `clusterize` to this new file once you are happy with it by modifying `~/.clusterize_pointer` as described above
