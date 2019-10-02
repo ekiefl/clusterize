@@ -16,7 +16,7 @@ from colored import style, fore
 # this is so multiple users can point to the same shared cluster config by changing their
 # individual clusterize_pointer files
 pointer_file = os.path.join(os.path.expanduser('~'), '.clusterize_pointer')
-default_config_path = os.path.join(os.path.expanduser('~'), '.clusterize_config')
+default_config_path = os.path.join('/project2/meren/MERENLAB-PUBLIC/SOFTWARE/clusterize/clusterize_config_merenlab')
 if not os.path.exists(pointer_file):
     with open(pointer_file, 'w') as f:
         f.write(default_config_path)
