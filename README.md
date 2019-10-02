@@ -30,7 +30,7 @@ If that also didn't bring up the help menu, try and find the line:
 Installing clusterize script to <SOME_PATH>
 ```
 
-and try `<SOME_PATH>/clusterize -h` if that brought the help menu, you simply need to add <SOME_PATH> to your $PATH variable.
+and try `<SOME_PATH>/clusterize -h`. if that brought the help menu, you simply need to add `<SOME_PATH>` to your `$PATH` variable.
 
 Please contact me if none of these worked, especially if you found a solution to your problem.
 
