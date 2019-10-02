@@ -75,8 +75,6 @@ class Clusterize(object):
         self.job_out = '{}_{}.out'.format(self.params['job_name'], self.job_seed)
         self.job_err = '{}_{}.err'.format(self.params['job_name'], self.job_seed)
 
-        self.check_params()
-
         self.sbatch_filepath = self.gen_sbatch_file()
 
         self.run_job()
@@ -111,33 +109,6 @@ class Clusterize(object):
                   style.RESET)
         finally:
             os.remove(self.sbatch_filepath)
-
-
-    def check_params(self):
-        for param, param_value in self.params.items():
-            if param_value is None:
-                print(fore.RED + \
-                      '{} is set to None. Provide the flag {} or edit the default in {}'.format(param, '--' + param.replace('_','-'), self.config_file_path) + \
-                      style.RESET)
-                sys.exit()
-
-        try:
-            self.params['num_nodes'] = int(self.params['num_nodes'])
-        except:
-            print(fore.RED + 'num_nodes must be an integer. its currently `{}`'.format(self.params['num_nodes']) + style.RESET)
-            sys.exit()
-
-        try:
-            self.params['num_tasks_per_node'] = int(self.params['num_tasks_per_node'])
-        except:
-            print(fore.RED + 'num_tasks_per_node must be an integer. its currently `{}`'.format(self.params['num_tasks_per_node']) + style.RESET)
-            sys.exit()
-
-        try:
-            self.params['mem_per_cpu'] = int(self.params['mem_per_cpu'])
-        except:
-            print(fore.RED + 'mem_per_cpu must be an integer. its currently `{}`'.format(self.params['mem_per_cpu']) + style.RESET)
-            sys.exit()
 
 
     def gen_sbatch_file(self, filepath=None):
