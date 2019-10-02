@@ -12,6 +12,15 @@ import configparser
 
 from colored import style, fore
 
+# pointer_file contains a single line which is the path to the clusterize config file
+# this is so multiple users can point to the same shared cluster config by changing their
+# individual clusterize_pointer files
+pointer_file = os.path.join(os.path.expanduser('~'), '.clusterize_pointer')
+default_config_path = os.path.join(os.path.expanduser('~'), '.clusterize_config')
+if not os.path.exists(pointer_file):
+    with open(pointer_file, 'w') as f:
+        f.write(default_config_path)
+
 SBATCH_template = """#!/bin/bash
 #SBATCH --job-name={job_name}_{seed}
 #SBATCH --output={job_name}_{seed}.out
@@ -30,18 +39,24 @@ out_of_box_defaults = {
     'partition': None,
     'num_nodes': 1,
     'num_tasks_per_node': 1,
-    'allotted_time': '15:00:00',
+    'allotted_time': '4-0:00:00',
     'mem_per_cpu': 10000,
 }
+
 
 class Clusterize(object):
     def __init__(self, args):
         self.job_seed = self.get_job_seed()
 
-        self.config_file_path = os.path.join(os.path.expanduser('~'), '.clusterize_config')
+        self.config_file_path = open(pointer_file, 'r').readline().strip()
         self.config_file_exists = True if os.path.exists(self.config_file_path) else False
+
         if not self.config_file_exists:
-            get_default_config()
+            if self.config_file_path == default_config_path:
+                get_default_config(self.config_file_path)
+            else:
+                print(fore.RED + '{} does not exist. Try setting a new config file'.format(self.config_file_path))
+                sys.exit()
 
         self.user_defaults = {}
 
@@ -59,8 +74,6 @@ class Clusterize(object):
 
         self.job_out = '{}_{}.out'.format(self.params['job_name'], self.job_seed)
         self.job_err = '{}_{}.err'.format(self.params['job_name'], self.job_seed)
-
-        self.check_params()
 
         self.sbatch_filepath = self.gen_sbatch_file()
 
@@ -86,43 +99,11 @@ class Clusterize(object):
             output = subprocess.check_output(cmd, shell=True, universal_newlines=True)
             self.touch(self.job_out)
             self.touch(self.job_err)
-            print(fore.GREEN + str(output.strip()))
-            print('    output_file: {}'.format(self.job_out))
-            print('    error_file: {}'.format(self.job_err) + style.RESET)
+            print(fore.GREEN + str(output.strip()) + ' (clusterize ID: {})'.format(self.job_seed) + style.RESET)
         except subprocess.CalledProcessError as e:
-            print(fore.RED + 'ClusterizeError' + style.RESET)
-            print(fore.YELLOW + \
-                  ('For permanent parameter changes, try editing the ~/.clusterize_config file') + \
-                  style.RESET)
+            print(fore.RED + 'ClusterizeError shown above. Change parameters or edit {}'.format(self.config_file_path) + style.RESET)
         finally:
             os.remove(self.sbatch_filepath)
-
-
-    def check_params(self):
-        for param, param_value in self.params.items():
-            if param_value is None:
-                print(fore.RED + \
-                      '{} is set to None. Provide the flag {} or edit the default in {}'.format(param, '--' + param.replace('_','-'), self.config_file_path) + \
-                      style.RESET)
-                sys.exit()
-
-        try:
-            self.params['num_nodes'] = int(self.params['num_nodes'])
-        except:
-            print(fore.RED + 'num_nodes must be an integer. its currently `{}`'.format(self.params['num_nodes']) + style.RESET)
-            sys.exit()
-
-        try:
-            self.params['num_tasks_per_node'] = int(self.params['num_tasks_per_node'])
-        except:
-            print(fore.RED + 'num_tasks_per_node must be an integer. its currently `{}`'.format(self.params['num_tasks_per_node']) + style.RESET)
-            sys.exit()
-
-        try:
-            self.params['mem_per_cpu'] = int(self.params['mem_per_cpu'])
-        except:
-            print(fore.RED + 'mem_per_cpu must be an integer. its currently `{}`'.format(self.params['mem_per_cpu']) + style.RESET)
-            sys.exit()
 
 
     def gen_sbatch_file(self, filepath=None):
@@ -154,10 +135,7 @@ def main(args):
     c = Clusterize(args)
 
 
-def get_default_config(path=None):
-    if not path:
-        path = os.path.join(os.path.expanduser('~'), '.clusterize_config')
-
+def get_default_config(path):
     if os.path.exists(path):
         print(fore.RED + '{} already exists. delete it first if you want to create a new default config'.format(path) + style.RESET)
         sys.exit()
@@ -166,7 +144,7 @@ def get_default_config(path=None):
     config['CLUSTERIZE_DEFAULTS'] = {k: str(v) for k, v in out_of_box_defaults.items()}
     with open(path, 'w') as configfile:
         config.write(configfile)
-    print(fore.GREEN + 'default config file written to {}'.format(path))
+    print(fore.GREEN + 'default config file written to {}'.format(path) + style.RESET)
 
 
 if __name__ == '__main__':
@@ -174,19 +152,21 @@ if __name__ == '__main__':
     Send commands to the cluster without writing tedious sbatch files. Simply run `clusterize "<your command>"`.
     Which partition, how many cores to use, etc., can all be set explicitly with the parameters below. However,
     if you are using the same parameters over and over again, e.g. you only ever use one partition, then you can
-    modify the ~/.cluster_config file which provides the defaults. If parameters below are used, they overwrite
-    those found in the ~/.cluster_config file.
+    modify the ~/.cluster_pointer file to point to your specified configuration file. If parameters below are used, they overwrite
+    those found in your configuration file. If you need a template, use the --gen-new-config-file command.
     """)
 
     groupP = ap.add_argument_group('THE COMMAND')
     groupP.add_argument('command', type=str, help='Your bash command that will be submitted as a SLURM job.\
                                                    It must be contained in double quotes, i.e. "<your command>".\
-                                                   If the command itself contains DOUBLE-quotes, prefix each\
-                                                   if them with a backslash, e.g. "echo \\"$(HOME)\\" > test"')
+                                                   As an example, `clusterize "echo hello world"`.\
+                                                   If the command contains double-quotes, prefix each\
+                                                   of them with a backslash, e.g. "echo \\"$(HOME)\\""')
 
     groupA = ap.add_argument_group('CONFIG', "Some of these options are required, and can be set permanently by\
-                                              creating modifying the config file. See '~/.clusterize_config'. Any parameter set\
-                                              here overwrites that found in the config file")
+                                              creating a config file. Generate a config file with --gen-new-config-file,\
+                                              modify it to your liking, and then edit ~/.clusterize_pointer so that it points to\
+                                              your config file. Any parameter set here overwrites that found in the config file")
 
     groupA.add_argument('-p','--partition', type=str, help='Which partition of the cluster are you using?')
     groupA.add_argument('-o','--job-name', type=str, help='Give a useful name to your job. It doesn\'t have to be unique,\
@@ -207,9 +187,10 @@ if __name__ == '__main__':
                                                               is {}'.format(out_of_box_defaults['mem_per_cpu']))
 
     groupB = ap.add_argument_group('DEFAULT CONFIG', "Start fresh with a new clusterize config file")
-    groupB.add_argument('--gen-new-config-file', type=str, help="If you have really garbled up your ~/.clusterize_config file,\
-                                                      use this to generate an out-of-box config file. Once you have modified it to your\
-                                                      content, replace ~/.clusterize_config with this file.")
+    groupB.add_argument('--gen-new-config-file', type=str, help="If you want to generate a template configuration file,\
+                                                      you can do so here. Once you have modified it to your\
+                                                      liking, edit the ~/.clusterize_pointer file so that it points to\
+                                                      the path of your new configuration file.")
 
     args = ap.parse_args()
 
