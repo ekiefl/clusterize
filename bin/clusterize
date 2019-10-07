@@ -22,9 +22,9 @@ if not os.path.exists(pointer_file):
         f.write(default_config_path)
 
 SBATCH_template = """#!/bin/bash
-#SBATCH --job-name={job_name}_{seed}
-#SBATCH --output={job_name}_{seed}.out
-#SBATCH --error={job_name}_{seed}.err
+#SBATCH --job-name={job_name}
+#SBATCH --output={output}
+#SBATCH --error={error}
 #SBATCH --partition={partition}
 #SBATCH --nodes={num_nodes}
 #SBATCH --ntasks-per-node={num_tasks_per_node}
@@ -41,6 +41,7 @@ out_of_box_defaults = {
     'num_tasks_per_node': 1,
     'allotted_time': '4-0:00:00',
     'mem_per_cpu': 10000,
+    'dont_add_random_string_to_job_name_and_outputs': False,
 }
 
 
@@ -60,17 +61,41 @@ class Clusterize(object):
 
         self.user_defaults = {}
 
-        A = lambda x: args.__dict__.get(x, None) if args.__dict__.get(x, None) is not None else self.get_default(x)
+        A = lambda x, d: args.__dict__.get(x, None) if args.__dict__.get(x, None) is not None else d(x)
         self.params = {
-            'command': A('command'),
-            'job_name': A('job_name'),
-            'partition': A('partition'),
-            'num_nodes': A('num_nodes'),
-            'num_tasks_per_node': A('num_tasks_per_node'),
-            'allotted_time': A('allotted_time'),
-            'mem_per_cpu': A('mem_per_cpu'),
+            'command': A('command', self.get_default),
+            'job_name': A('job_name', self.get_default),
+            'output': A('output', lambda x: A('job_name', self.get_default) + '.out'),
+            'error': A('error', lambda x: A('job_name', self.get_default) + '.err'),
+            'partition': A('partition', self.get_default),
+            'num_nodes': A('num_nodes', self.get_default),
+            'num_tasks_per_node': A('num_tasks_per_node', self.get_default),
+            'allotted_time': A('allotted_time', self.get_default),
+            'mem_per_cpu': A('mem_per_cpu', self.get_default),
+            'dont_add_random_string_to_job_name_and_outputs': A('dont_add_random_string_to_job_name_and_outputs', self.get_default),
             'seed': self.job_seed,
         }
+
+        if not self.params['dont_add_random_string_to_job_name_and_outputs']:
+            self.params['job_name'] += '_' + self.params['seed']
+
+            # adds string before last `.` (if it exists) to keep file extension
+            job_out_split, job_err_split = self.params['output'].split('.'), self.params['error'].split('.')
+
+            if '.' in self.params['output']:
+                split_by_dot = self.params['output'].split('.')
+                split_by_dot[-2] += '_' + self.params['seed']
+                self.params['output'] = '.'.join(split_by_dot)
+            else:
+                self.params['output'] += '_' + self.params['seed']
+
+            if '.' in self.params['error']:
+                split_by_dot = self.params['error'].split('.')
+                split_by_dot[-2] += '_' + self.params['seed']
+                self.params['error'] = '.'.join(split_by_dot)
+            else:
+                self.params['error'] += '_' + self.params['seed']
+
 
         self.job_out = '{}_{}.out'.format(self.params['job_name'], self.job_seed)
         self.job_err = '{}_{}.err'.format(self.params['job_name'], self.job_seed)
@@ -97,13 +122,21 @@ class Clusterize(object):
 
         try:
             output = subprocess.check_output(cmd, shell=True, universal_newlines=True)
-            self.touch(self.job_out)
-            self.touch(self.job_err)
-            print(fore.GREEN + str(output.strip()) + ' (logs: {}, {})'.format(self.job_out, self.job_err) + style.RESET)
         except subprocess.CalledProcessError as e:
             print(fore.RED + 'ClusterizeError shown above. Change parameters or edit {}'.format(self.config_file_path) + style.RESET)
         finally:
             os.remove(self.sbatch_filepath)
+
+        self.touch(self.params['output'])
+        self.touch(self.params['error'])
+
+        extra_msg = ''
+        if self.params['output'] == self.params['error']:
+            extra_msg += ' (log: {})'.format(self.params['output'])
+        else:
+            extra_msg += ' (logs: {}, {})'.format(self.params['output'], self.params['error'])
+
+        print(fore.GREEN + str(output.strip()) + extra_msg + style.RESET)
 
 
     def gen_sbatch_file(self, filepath=None):
@@ -169,14 +202,15 @@ if __name__ == '__main__':
                                               your config file. Any parameter set here overwrites that found in the config file")
 
     groupA.add_argument('-p','--partition', type=str, help='Which partition of the cluster are you using?')
-    groupA.add_argument('-o','--job-name', type=str, help='Give a useful name to your job. It doesn\'t have to be unique,\
-                                                           as a unique ID is appended to whatever you pick.\
-                                                           This name will show up in the SLURM queue, and will\
-                                                           be the prefix for the .out and .err files of the job.\
-                                                           as an example, if the job name is `job`, it may show\
-                                                           in the queue as `job_hcwknUCbSr`, and the outputs will\
-                                                           be `job_hcwknUCbSra.out` and `job_hcwknUCbSra.err`.\
+    groupA.add_argument('-j','--job-name', type=str, help='Give a useful name to your job if you want. This name will show\
+                                                           up in the SLURM queue. If --output and --error are not\
+                                                           explicitly provided, this parameter will also be their prefix.\
                                                            The default is simply {}'.format(out_of_box_defaults['job_name']))
+    groupA.add_argument('-o','--output', type=str, help='Give a name for your output log. By default, its taken from --job-name')
+    groupA.add_argument('-e','--error', type=str, help='Give a name for your error log. By default, its taken from --job-name')
+    groupA.add_argument('-x', '--dont-add-random-string-to-job-name-and-outputs', action='store_true', default=None,
+                                                      help='By default a unique string is added to job name and the output\
+                                                            and error logs. Use this flag to suppress this behavior.')
     groupA.add_argument('-N','--num-nodes', type=int, help='How many nodes you want to use? default is {}'.format(out_of_box_defaults['num_nodes']))
     groupA.add_argument('-n','--num-tasks-per-node', type=int, help='How many nodes you want to use? default {}'.format(out_of_box_defaults['num_tasks_per_node']))
     groupA.add_argument('-t','--allotted-time', help='After this amount of time, the process will be killed :( The \
