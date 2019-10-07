@@ -16,7 +16,7 @@ from colored import style, fore
 # this is so multiple users can point to the same shared cluster config by changing their
 # individual clusterize_pointer files
 pointer_file = os.path.join(os.path.expanduser('~'), '.clusterize_pointer')
-default_config_path = os.path.join('/project2/meren/MERENLAB-PUBLIC/SOFTWARE/clusterize/clusterize_config_merenlab')
+default_config_path = os.path.join(os.path.expanduser('~'), '.clusterize_config')
 if not os.path.exists(pointer_file):
     with open(pointer_file, 'w') as f:
         f.write(default_config_path)
@@ -95,10 +95,6 @@ class Clusterize(object):
                 self.params['error'] = '.'.join(split_by_dot)
             else:
                 self.params['error'] += '_' + self.params['seed']
-
-
-        self.job_out = '{}_{}.out'.format(self.params['job_name'], self.job_seed)
-        self.job_err = '{}_{}.err'.format(self.params['job_name'], self.job_seed)
 
         self.sbatch_filepath = self.gen_sbatch_file()
 
