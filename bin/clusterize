@@ -41,7 +41,7 @@ out_of_box_defaults = {
     'num_tasks_per_node': 1,
     'allotted_time': '4-0:00:00',
     'mem_per_cpu': 10000,
-    'dont_add_random_string_to_job_name_and_outputs': False,
+    'dont_add_random_string_to_job_name_and_outputs': 0,
 }
 
 
@@ -72,7 +72,7 @@ class Clusterize(object):
             'num_tasks_per_node': A('num_tasks_per_node', self.get_default),
             'allotted_time': A('allotted_time', self.get_default),
             'mem_per_cpu': A('mem_per_cpu', self.get_default),
-            'dont_add_random_string_to_job_name_and_outputs': A('dont_add_random_string_to_job_name_and_outputs', self.get_default),
+            'dont_add_random_string_to_job_name_and_outputs': bool(int(A('dont_add_random_string_to_job_name_and_outputs', self.get_default))),
             'seed': self.job_seed,
         }
 
