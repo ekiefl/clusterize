@@ -65,8 +65,8 @@ class Clusterize(object):
         self.params = {
             'command': A('command', self.get_default),
             'job_name': A('job_name', self.get_default),
-            'output': A('output', lambda x: A('job_name', self.get_default) + '.out'),
-            'error': A('error', lambda x: A('job_name', self.get_default) + '.err'),
+            'output': A('output', lambda x: A('job_name', self.get_default) + '.log'),
+            'error': A('error', lambda x: A('job_name', self.get_default) + '.log'),
             'partition': A('partition', self.get_default),
             'num_nodes': A('num_nodes', self.get_default),
             'num_tasks_per_node': A('num_tasks_per_node', self.get_default),
@@ -202,8 +202,10 @@ if __name__ == '__main__':
                                                            up in the SLURM queue. If --output and --error are not\
                                                            explicitly provided, this parameter will also be their prefix.\
                                                            The default is simply {}'.format(out_of_box_defaults['job_name']))
-    groupA.add_argument('-o','--output', type=str, help='Give a name for your output log. By default, its taken from --job-name')
-    groupA.add_argument('-e','--error', type=str, help='Give a name for your error log. By default, its taken from --job-name')
+    groupA.add_argument('-o','--output', type=str, help='Give a name for your output log. By default, its taken from --job-name\
+                                                         and equal to the error log file')
+    groupA.add_argument('-e','--error', type=str, help='Give a name for your error log. By default, its taken from --job-name\
+                                                        and equal to the output log file')
     groupA.add_argument('-x', '--dont-add-random-string-to-job-name-and-outputs', action='store_true', default=None,
                                                       help='By default a unique string is added to job name and the output\
                                                             and error logs. Use this flag to suppress this behavior.')
