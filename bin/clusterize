@@ -15,6 +15,9 @@ from colored import style, fore
 # pointer_file contains a single line which is the path to the clusterize config file
 # this is so multiple users can point to the same shared cluster config by changing their
 # individual clusterize_pointer files
+history_file = os.path.join(os.path.expanduser('~'), '.clusterize_history')
+if not os.path.exists(history_file):
+    open(history_file, 'a').close()
 pointer_file = os.path.join(os.path.expanduser('~'), '.clusterize_pointer')
 default_config_path = os.path.join(os.path.expanduser('~'), '.clusterize_config')
 if not os.path.exists(pointer_file):
@@ -99,6 +102,19 @@ class Clusterize(object):
         self.sbatch_filepath = self.gen_sbatch_file()
 
         self.run_job()
+        self.add_to_job_history()
+
+
+    def add_to_job_history(self):
+        with open(history_file, 'r') as f:
+            entries = f.readlines()
+        entries.append('{}\t{}\n'.format(self.params['job_name'], os.path.abspath(self.params['output'])))
+
+        f = open(history_file, 'w')
+        if len(entries) > 500:
+            f.write(''.join(entries[-500:]))
+        else:
+            f.write(''.join(entries))
 
 
     def get_job_seed(self, length=10):
