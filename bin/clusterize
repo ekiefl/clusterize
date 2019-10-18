@@ -141,9 +141,10 @@ class Clusterize(object):
             output = subprocess.check_output(cmd, shell=True, universal_newlines=True)
         except subprocess.CalledProcessError as e:
             print(fore.RED + 'ClusterizeError shown above. Change parameters or edit {}'.format(self.config_file_path) + style.RESET)
-        finally:
             os.remove(self.sbatch_filepath)
+            sys.exit()
 
+        os.remove(self.sbatch_filepath)
         self.touch(self.params['output'])
         self.touch(self.params['error'])
 
