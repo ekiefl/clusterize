@@ -7,6 +7,7 @@ import random
 import string
 import tempfile
 import argparse
+import datetime
 import subprocess
 import configparser
 
@@ -34,6 +35,7 @@ SBATCH_template = """#!/bin/bash
 #SBATCH --ntasks-per-node={num_tasks_per_node}
 #SBATCH --time={allotted_time}
 #SBATCH --mem-per-cpu={mem_per_cpu}
+#SBATCH --open-mode=append
 
 {command}
 """
@@ -125,7 +127,7 @@ class Clusterize(object):
 
                 # Its directory name either doesnt exist or is a file.
                 else:
-                    print(fore.RED + '{} isn\'t a directory so clusterize is unwilling to set {} as the {}'.format(os.path.dirname(path), path, output) + style.RESET)
+                    print(fore.RED + '{} isn\'t a directory so clusterize is unwilling to set {} as the {} file'.format(os.path.dirname(path), path, name) + style.RESET)
                     sys.exit()
 
 
@@ -186,15 +188,20 @@ class Clusterize(object):
             sys.exit()
 
         os.remove(self.sbatch_filepath)
-        self.touch(self.params['output'])
-        self.touch(self.params['error'])
 
-        extra_msg = ''
-        if self.params['output'] == self.params['error']:
-            extra_msg += ' (log: {})'.format(self.params['output'])
-        else:
-            extra_msg += ' (logs: {}, {})'.format(self.params['output'], self.params['error'])
+        files = [self.params['output'], self.params['error']] if self.params['output'] != self.params['error'] else [self.params['output']]
 
+        # create files if they don't exist, append a time stamp and the command
+        for fp in files:
+            with open(fp, 'a+') as f:
+                # if the file is an empty add some space
+                if os.stat(fp).st_size != 0:
+                    f.write('\n')
+
+                f.write('# CLUSTERIZE submitted: {}\n'.format(datetime.datetime.now()))
+                f.write('# command: {}\n\n'.format(self.params['command']))
+
+        extra_msg = ' (log{}: {})'.format('s' if len(files) > 1 else '', ', '.join(files))
         print(fore.GREEN + str(output.strip()) + extra_msg + style.RESET)
 
 
