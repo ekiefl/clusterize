@@ -69,8 +69,6 @@ class Clusterize(object):
         self.params = {
             'command': A('command', self.get_default),
             'job_name': A('job_name', self.get_default),
-            'output': A('output', lambda x: A('job_name', self.get_default) + '.log'),
-            'error': A('error', lambda x: A('job_name', self.get_default) + '.log'),
             'partition': A('partition', self.get_default),
             'num_nodes': A('num_nodes', self.get_default),
             'num_tasks_per_node': A('num_tasks_per_node', self.get_default),
@@ -80,12 +78,55 @@ class Clusterize(object):
             'seed': self.job_seed,
         }
 
+        if '/' in self.params['job_name']:
+            print(fore.RED + 'Why does your job name have slashes? It\'s a name for the job, not a path' + style.RESET)
+            sys.exit()
+
+        self.parse_output_parameter()
+
         self.handle_random_string()
 
         self.sbatch_filepath = self.gen_sbatch_file()
 
         self.run_job()
         self.add_to_job_history()
+
+
+    def parse_output_parameter(self):
+        user_provided_output = args.__dict__.get('output', None)
+        if not user_provided_output:
+            job_name = self.params['job_name']
+            self.params['output'] = self.params['job_name'] + '.log'
+            self.params['error'] = self.params['job_name'] + '.log'
+        else:
+            num_inputs = len(user_provided_output.split(','))
+            if num_inputs > 2:
+                print(fore.RED + 'clusterize was expecting either 1 or 2 items for (-o, --output) but got {}'.format(num_inputs) + style.RESET)
+                sys.exit()
+
+            output, error = (user_provided_output, user_provided_output) if num_inputs == 1 else user_provided_output.split(',')
+            for name, path in zip(['output', 'error'], [output, error]):
+                path = os.path.abspath(path)
+
+                # It's a file already. Perfect
+                if os.path.isfile(path):
+                    self.params[name] = path
+
+                # It's an existing existing directory. Perfect
+                elif os.path.isdir(path):
+                    # sort out extension logic. If they provided one input, both are .log.
+                    # Otherwise, output is .out and error is .err
+                    ext = '.log' if num_inputs == 1 else ('.out' if name == 'output' else '.err')
+                    self.params[name] = os.path.join(path, self.params['job_name'] + ext)
+
+                # It doesn't yet exist but its directory exists. Perfect
+                elif os.path.isdir(os.path.dirname(path)):
+                    self.params[name] = path
+
+                # Its directory name either doesnt exist or is a file.
+                else:
+                    print(fore.RED + '{} isn\'t a directory so clusterize is unwilling to set {} as the {}'.format(os.path.dirname(path), path, output) + style.RESET)
+                    sys.exit()
 
 
     def handle_random_string(self):
@@ -221,13 +262,19 @@ if __name__ == '__main__':
 
     groupA.add_argument('-p','--partition', type=str, help='Which partition of the cluster are you using?')
     groupA.add_argument('-j','--job-name', type=str, help='Give a useful name to your job if you want. This name will show\
-                                                           up in the SLURM queue. If --output and --error are not\
-                                                           explicitly provided, this parameter will also be their prefix.\
-                                                           The default is simply {}'.format(out_of_box_defaults['job_name']))
-    groupA.add_argument('-o','--output', type=str, help='Give a name for your output log. By default, its taken from --job-name\
-                                                         and equal to the error log file')
-    groupA.add_argument('-e','--error', type=str, help='Give a name for your error log. By default, its taken from --job-name\
-                                                        and equal to the output log file')
+                                                           up in the SLURM queue. The default is simply {}'.format(out_of_box_defaults['job_name']))
+    groupA.add_argument('-o','--output', type=str, help='Specify your output files here. Supply any \
+                                                         of the following. [[1]] NOTHING: output and \
+                                                         error share same output file, which is put \
+                                                         in your working directory with a name \
+                                                         derived from the job name. [[2]] ONE PATH: \
+                                                         output and error share the same log file, \
+                                                         specified by this path. [[3]] TWO PATHS \
+                                                         (comma separated): output and error get \
+                                                         their own files, specified by these paths, \
+                                                         respectively. NOTES: If a given path is a directory, the \
+                                                         output file will be placed in the directory \
+                                                         with a name derived from the job name.')
     groupA.add_argument('-x', '--dont-add-random-string-to-job-name-and-outputs', action='store_true', default=None,
                                                       help='By default a unique string is added to job name and the output\
                                                             and error logs. Use this flag to suppress this behavior.')
