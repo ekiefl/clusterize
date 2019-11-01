@@ -3,6 +3,7 @@
 
 import os
 import sys
+import time
 import random
 import string
 import tempfile
@@ -87,11 +88,6 @@ class Clusterize(object):
         self.parse_output_parameter()
 
         self.handle_random_string()
-
-        self.sbatch_filepath = self.gen_sbatch_file()
-
-        self.run_job()
-        self.add_to_job_history()
 
 
     def parse_output_parameter(self):
@@ -204,6 +200,8 @@ class Clusterize(object):
         extra_msg = ' (log{}: {})'.format('s' if len(files) > 1 else '', ', '.join(files))
         print(fore.GREEN + str(output.strip()) + extra_msg + style.RESET)
 
+        self.add_to_job_history()
+
 
     def gen_sbatch_file(self, filepath=None):
         if not filepath:
@@ -230,8 +228,95 @@ class Clusterize(object):
         return self.user_defaults.get(param_name) or out_of_box_defaults.get(param_name)
 
 
+    def submit(self):
+        self.sbatch_filepath = self.gen_sbatch_file()
+        self.run_job()
+
+
+class LimitUserResourceUptake(object):
+    """ Hold submission until user is using less than some number of cores
+
+    Parameters
+    ==========
+    total : int
+        The total number of CPUs used by the user should not exceed this amount.
+        if total = None, this class does nothing.
+    requested : int
+        The number of CPUs that the job takes
+    """
+
+    def __init__(self, total, requested, give_up_time=None):
+        self.total = total
+        self.requested = requested
+        self.give_up_time = give_up_time
+
+        self.timestamp = time.time()
+        self.check_every = 1 # 1 second; grows dynamically to 1 minute
+        self.attempts = 0
+
+
+    def time_elapsed(self):
+        return time.time() - self.timestamp
+
+
+    def get_current_num_CPUs(self):
+        """ Execute bash one-liner to learn how many CPUs currently used by user
+
+        Returns
+        =======
+        used : int
+            The current number of used CPUs by the user
+        """
+
+        cmd = "squeue --user=$USER -o '%C' | tail -n +2 | paste -sd+ | bc"
+
+        try:
+            return int(subprocess.check_output(cmd, shell=True, universal_newlines=True))
+        except subprocess.CalledProcessError as e:
+            print(fore.RED + 'LimitUserResourceUptake :: cmd `{}` failed'.format(cmd) + style.RESET)
+            sys.exit()
+
+
+    def increment_check_every(self):
+        if self.check_every >= 60:
+            return
+        else:
+            self.check_every += 1
+
+
+    def __enter__(self):
+        if self.total == None:
+            # submit the job
+            return
+
+        while True:
+            current_num_CPUs = self.get_current_num_CPUs()
+            if current_num_CPUs + self.requested <= self.total:
+                # submit the job
+                return
+            else:
+                if self.give_up_time is not None and self.time_elapsed() > self.give_up_time:
+                    # give up
+                    print(fore.RED + 'Giving up after {}s'.format(self.time_elapsed()) + style.RESET)
+                    sys.exit(1)
+                else:
+                    print(fore.YELLOW + 'Already utilizing {} cores... trying again in {}s'.format(current_num_CPUs, self.check_every))
+                    time.sleep(self.check_every)
+                    self.increment_check_every()
+
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        pass
+
+
 def main(args):
     c = Clusterize(args)
+
+    total = args.max_resources
+    requested = int(c.params['num_nodes']) * int(c.params['num_tasks_per_node'])
+
+    with LimitUserResourceUptake(total, requested):
+        c.submit()
 
 
 def get_default_config(path):
@@ -287,6 +372,13 @@ if __name__ == '__main__':
                                                             and error logs. Use this flag to suppress this behavior.')
     groupA.add_argument('-N','--num-nodes', type=int, help='How many nodes you want to use? default is {}'.format(out_of_box_defaults['num_nodes']))
     groupA.add_argument('-n','--num-tasks-per-node', type=int, help='How many nodes you want to use? default {}'.format(out_of_box_defaults['num_tasks_per_node']))
+    groupA.add_argument('-R','--max-resources', type=int, default=None, help='If you don\'t want to hog the cluster by submitting tons of jobs,\
+                                                                this parameter is for you. The job will not be submitted until\
+                                                                {the number of CPUS you are currently using} + {the number of\
+                                                                CPUs requested with this job} <= {this parameter}. If using\
+                                                                this parameter you should be inside a screen, since the\
+                                                                clusterize command will take an indetermined\
+                                                                amount of time to execute.')
     groupA.add_argument('-t','--allotted-time', help='After this amount of time, the process will be killed :( The \
                                                       default is {}, which could be higher than your cluster allows.\
                                                       One acceptable time format is HH:MM:SS, i.e. 15 hours would\
