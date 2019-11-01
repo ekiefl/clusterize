@@ -1,4 +1,4 @@
-**The only intended difference between this repo and https://github.com/ekiefl/clusterize is this commit: https://github.com/merenlab/clusterize/commit/ba8d0f52cd87933a5545ef288d5178556504ac2a, which modifies the default configuration file such that merenlab members immediately have access to merenlab specific configuration.**
+**If you're a meren lab member, visit here for instructions on how to use our default parameters: https://github.com/merenlab/lab-fiesta/wiki/Working-on-Midway#clusterize.**
 
 
 # clusterize
