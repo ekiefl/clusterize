@@ -271,7 +271,8 @@ class LimitUserResourceUptake(object):
         cmd = "squeue --user=$USER -o '%C' | tail -n +2 | paste -sd+ | bc"
 
         try:
-            return int(subprocess.check_output(cmd, shell=True, universal_newlines=True))
+            output = subprocess.check_output(cmd, shell=True, universal_newlines=True)
+            return 0 if output == '' else int(output)
         except subprocess.CalledProcessError as e:
             print(fore.RED + 'LimitUserResourceUptake :: cmd `{}` failed'.format(cmd) + style.RESET)
             sys.exit()
