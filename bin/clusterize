@@ -391,8 +391,8 @@ if __name__ == '__main__':
                                                                 amount of time to execute.')
     groupA.add_argument('-t','--allotted-time', help='After this amount of time, the process will be killed :( The \
                                                       default is {}, which could be higher than your cluster allows.\
-                                                      One acceptable time format is HH:MM:SS, i.e. 15 hours would\
-                                                      be: `15:00:00`'.format(out_of_box_defaults['allotted_time']))
+                                                      One acceptable time format is DD-HH:MM:SS, i.e. 15 hours would\
+                                                      be: `15:00:00`, 1 day and 3 seconds would be `01-00:00:03`'.format(out_of_box_defaults['allotted_time']))
     groupA.add_argument('-M','--mem-per-cpu', type=int, help='How much memory in MB should be allotted per cpu? Default\
                                                               is {}'.format(out_of_box_defaults['mem_per_cpu']))
     groupA.add_argument('--nodelist', help='Run the job using this list of nodes (comma separated). Default is {}'.format(out_of_box_defaults['nodelist']))
