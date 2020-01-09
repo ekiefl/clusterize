@@ -38,6 +38,8 @@ SBATCH_template = """#!/bin/bash
 #SBATCH --mem-per-cpu={mem_per_cpu}
 #SBATCH --open-mode=append
 #SBATCH --nodelist={nodelist}
+#SBATCH --mail-user={mail_user}
+#SBATCH --mail-type={mail_type}
 
 {command}
 """
@@ -50,6 +52,8 @@ out_of_box_defaults = {
     'allotted_time': '4-0:00:00',
     'mem_per_cpu': 10000,
     'nodelist': '',
+    'mail_user': '',
+    'mail_type': 'ALL',
     'dont_add_random_string_to_job_name_and_outputs': 0,
 }
 
@@ -80,6 +84,8 @@ class Clusterize(object):
             'allotted_time': A('allotted_time', self.get_default),
             'mem_per_cpu': A('mem_per_cpu', self.get_default),
             'nodelist': A('nodelist', self.get_default),
+            'mail_user': A('mail_user', self.get_default),
+            'mail_type': A('mail_type', self.get_default),
             'dont_add_random_string_to_job_name_and_outputs': bool(int(A('dont_add_random_string_to_job_name_and_outputs', self.get_default))),
             'seed': self.job_seed,
         }
@@ -389,7 +395,9 @@ if __name__ == '__main__':
                                                       be: `15:00:00`'.format(out_of_box_defaults['allotted_time']))
     groupA.add_argument('-M','--mem-per-cpu', type=int, help='How much memory in MB should be allotted per cpu? Default\
                                                               is {}'.format(out_of_box_defaults['mem_per_cpu']))
-    groupA.add_argument('--nodelist', help='Run the job using this list of nodes (comma separated)'.format(out_of_box_defaults['nodelist']))
+    groupA.add_argument('--nodelist', help='Run the job using this list of nodes (comma separated). Default is {}'.format(out_of_box_defaults['nodelist']))
+    groupA.add_argument('--mail-user', help='email address to send updates to. Default is {}'.format(out_of_box_defaults['mail_user']))
+    groupA.add_argument('--mail-type', help='Comma-separated from this list: (NONE, BEGIN, END, FAIL, ALL). Default is {}'.format(out_of_box_defaults['mail_type']))
 
     groupB = ap.add_argument_group('DEFAULT CONFIG', "Start fresh with a new clusterize config file")
     groupB.add_argument('--gen-new-config-file', type=str, help="If you want to generate a template configuration file,\
