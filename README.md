@@ -10,7 +10,7 @@ The most basic python SLURM wrapper imaginable. The intent is to avoid the use o
 
 ## Requirements
 
-This is written in python3.
+This must be setup in a python3 environment.
 
 ## Installation
 
