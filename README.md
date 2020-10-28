@@ -26,6 +26,14 @@ clusterize -h
 Did that bring up the help menu? If not, try:
 
 ```
+cd ..
+clusterize -h
+cd -
+```
+
+(For some reason it be like that) Did that bring up the help menu? If not, try:
+
+```
 python setup.py install --user
 clusterize -h
 ```
